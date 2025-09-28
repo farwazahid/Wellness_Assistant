@@ -6,7 +6,7 @@ from gtts import gTTS
 import matplotlib.pyplot as plt
 
 # --- API Setup ---
-API_KEY = os.getenv("GROQ_API_KEY")
+API_KEY = os.getenv("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")
 client = Groq(api_key=API_KEY)
 
 # --- Global Storage ---
