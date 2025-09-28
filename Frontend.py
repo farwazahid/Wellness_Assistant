@@ -1,6 +1,6 @@
 # app.py
 import streamlit as st
-from wellness_assistant import (
+from Bac import (
     analyze_mood,
     generate_fitness_plan,
     voice_guided_meditation,
