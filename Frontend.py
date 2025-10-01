@@ -1,6 +1,5 @@
-# app.py
 import streamlit as st
-from Backend import (
+from wellness_assistant import (
     analyze_mood,
     generate_fitness_plan,
     voice_guided_meditation,
@@ -8,26 +7,62 @@ from Backend import (
     show_progress,
     query_gemma2,
     progress,
-    check_in,
-    check_out,
-    attendance_log,
-    classify_request,
+    reminders,
 )
 
 # ----------------------------
 # Streamlit Page Setup
 # ----------------------------
 st.set_page_config(page_title="Wellness Assistant", page_icon="💬", layout="wide")
-st.title("💬 Wellness Assistant Chatbot")
-st.write("Your personal assistant for mood tracking, fitness, meditation, HR requests, and reminders.")
 
-# Sidebar
+# Custom CSS for colors and chat bubbles
+st.markdown(
+    """
+    <style>
+    body {
+        background-color: #F9F7F3;
+    }
+    .sidebar .sidebar-content {
+        background-color: #F5B700;
+        color: white;
+    }
+    .chat-bubble-user {
+        background-color: #6B4226;
+        color: white;
+        padding: 10px;
+        border-radius: 15px;
+        margin: 5px 0;
+        max-width: 70%;
+        float: right;
+        clear: both;
+    }
+    .chat-bubble-bot {
+        background-color: #F9F7F3;
+        color: #2E2E2E;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 15px;
+        margin: 5px 0;
+        max-width: 70%;
+        float: left;
+        clear: both;
+        box-shadow: 1px 1px 4px rgba(0,0,0,0.1);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ----------------------------
+# Title & Sidebar
+# ----------------------------
+st.title("💬 Wellness Assistant Chatbot")
+
 st.sidebar.title("⚡ Wellness Assistant")
 st.sidebar.write("Built for CodeFusion Hackathon 2025 🎉")
-st.sidebar.success("Features: Mood, Fitness, Meditation, Reminders, Attendance, HR Requests, Progress")
+st.sidebar.success("Features: Mood, Fitness, Meditation, Reminders, Progress")
 
-# Role selection
-role = st.sidebar.radio("Select Role:", ["User", "Admin"])
+st.write("Your personal assistant for mood tracking, fitness, meditation, and reminders.")
 
 # ----------------------------
 # Session State (for chat history)
@@ -36,14 +71,20 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # ----------------------------
-# User Input
+# Tabs for Features
 # ----------------------------
-if role == "User":
-    user_input = st.text_input("Type your message here 👇")
+tab1, tab2, tab3 = st.tabs(["💬 Chat", "📊 Progress", "⏰ Reminders"])
 
-    if st.button("Send") and user_input:
-        request_type = classify_request(user_input)
+# ----------------------------
+# Chat Tab
+# ----------------------------
+with tab1:
+    st.subheader("Chat with Assistant")
 
+    user_input = st.text_input("Type your message here 👇", key="chat_input")
+
+    if st.button("Send", key="chat_button") and user_input:
+        # Route query to backend
         if "mood" in user_input.lower():
             reply = analyze_mood(user_input)
 
@@ -59,52 +100,52 @@ if role == "User":
             reply = set_reminder("Take medicine", "8 PM")
 
         elif "progress" in user_input.lower():
-            labels, values = show_progress()
+            labels = ["Mood", "Fitness", "Meditation"]
+            values = [
+                len(progress["mood"]),
+                len(progress["fitness"]),
+                len(progress["meditation"]),
+            ]
             st.bar_chart({"Activities": values})
             reply = "📊 Here’s your progress."
 
-        elif "check-in" in user_input.lower():
-            reply = check_in("Employee")
-
-        elif "check-out" in user_input.lower():
-            reply = check_out("Employee")
-
-        elif request_type == "leave":
-            reply = "📌 Leave request recorded. Pending approval."
-        elif request_type == "travel":
-            reply = "✈️ Travel request noted. Please attach details."
-        elif request_type == "resignation":
-            reply = "⚠️ Resignation request forwarded to HR."
-        elif request_type == "expense":
-            reply = "💰 Expense reimbursement request logged."
         else:
             reply = query_gemma2(user_input)
 
+        # Save chat history
         st.session_state.chat_history.append(("You", user_input))
         st.session_state.chat_history.append(("Bot", reply))
 
-    # Display Chat History
+    # Display chat history with bubbles
     st.subheader("Chat History")
-    for role_chat, msg in st.session_state.chat_history:
-        if role_chat == "You":
-            st.markdown(f"**👤 {role_chat}:** {msg}")
+    for role, msg in st.session_state.chat_history:
+        if role == "You":
+            st.markdown(f"<div class='chat-bubble-user'>{msg}</div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"**🤖 {role_chat}:** {msg}")
+            st.markdown(f"<div class='chat-bubble-bot'>{msg}</div>", unsafe_allow_html=True)
 
 # ----------------------------
-# Admin View
+# Progress Tab
 # ----------------------------
-if role == "Admin":
-    st.subheader("📊 Admin Dashboard")
+with tab2:
+    st.subheader("Your Progress Overview")
+    st.metric("Mood Entries", len(progress["mood"]))
+    st.metric("Fitness Plans", len(progress["fitness"]))
+    st.metric("Meditations", len(progress["meditation"]))
 
-    if attendance_log:
-        st.write("### Attendance Log")
-        st.table(attendance_log)
+    st.bar_chart({
+        "Mood": [len(progress["mood"])],
+        "Fitness": [len(progress["fitness"])],
+        "Meditation": [len(progress["meditation"])]
+    })
+
+# ----------------------------
+# Reminders Tab
+# ----------------------------
+with tab3:
+    st.subheader("Reminders")
+    if len(reminders) > 0:
+        for r in reminders:
+            st.write(f"⏰ {r['text']} at {r['time']}")
     else:
-        st.info("No attendance records yet.")
-
-    st.write("### Progress Overview")
-    labels, values = show_progress()
-    st.bar_chart({"Mood": [len(progress["mood"])],
-                  "Fitness": [len(progress["fitness"])],
-                  "Meditation": [len(progress["meditation"])]})
+        st.info("No reminders set yet. Use the chat to create one!")
